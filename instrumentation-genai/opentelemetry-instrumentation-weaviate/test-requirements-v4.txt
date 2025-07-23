@@ -1,0 +1,5 @@
+weaviate-client>=4.0.0,<5.0.0
+pytest>=7.0.0
+pytest-mock>=3.0.0
+-e opentelemetry-instrumentation
+-e instrumentation-genai/opentelemetry-instrumentation-weaviate

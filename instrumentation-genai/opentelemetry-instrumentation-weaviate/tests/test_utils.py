@@ -1,0 +1,108 @@
+# Copyright The OpenTelemetry Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from typing import List
+
+from opentelemetry.instrumentation.weaviate import WeaviateInstrumentor
+from opentelemetry.semconv._incubating.attributes import (
+    db_attributes as DbAttributes,
+)
+from opentelemetry.semconv._incubating.attributes import (
+    server_attributes as ServerAttributes,
+)
+from opentelemetry.test.test_base import TestBase
+from opentelemetry.trace import Span, SpanKind
+
+
+class WeaviateSpanTestBase(TestBase):
+    """Base class for all Weaviate span generation tests"""
+
+    def setUp(self):
+        super().setUp()
+        WeaviateInstrumentor().instrument(tracer_provider=self.tracer_provider)
+
+    def tearDown(self):
+        super().tearDown()
+        WeaviateInstrumentor().uninstrument()
+
+    def assert_span_count(self, count: int) -> List[Span]:
+        """Assert that the memory exporter has the expected number of spans."""
+        spans = self.memory_exporter.get_finished_spans()
+        self.assertEqual(len(spans), count)
+        return spans
+
+    def assert_parent_child_relationship(
+        self, parent_span: Span, child_span: Span
+    ):
+        """Assert that child_span is a child of parent_span."""
+        self.assertIsNotNone(child_span.parent)
+        self.assertEqual(
+            child_span.parent.span_id, parent_span.context.span_id
+        )
+        self.assertEqual(
+            child_span.parent.trace_id, parent_span.context.trace_id
+        )
+
+    def assert_span_properties(
+        self,
+        span: Span,
+        expected_name: str,
+        expected_kind: SpanKind = SpanKind.CLIENT,
+    ):
+        """Assert basic span properties."""
+        self.assertEqual(span.name, expected_name)
+        self.assertEqual(span.kind, expected_kind)
+
+    def assert_db_attributes(self, span: Span, operation_name: str = None):
+        """Assert database-related span attributes."""
+        attributes = span.attributes
+        self.assertEqual(attributes[DbAttributes.DB_SYSTEM], "weaviate")
+        if operation_name:
+            self.assertEqual(
+                attributes[DbAttributes.DB_OPERATION_NAME], operation_name
+            )
+
+    def assert_server_attributes(
+        self, span: Span, host: str = None, port: int = None
+    ):
+        """Assert server-related span attributes."""
+        attributes = span.attributes
+        if host:
+            self.assertEqual(attributes[ServerAttributes.SERVER_ADDRESS], host)
+        if port:
+            self.assertEqual(attributes[ServerAttributes.SERVER_PORT], port)
+
+    def assert_span_events(self, span: Span, expected_event_count: int = None):
+        """Assert span events."""
+        if expected_event_count is not None:
+            self.assertEqual(len(span.events), expected_event_count)
+
+    def get_spans_by_name(self, spans: List[Span], name: str) -> List[Span]:
+        """Get all spans with the given name."""
+        return [span for span in spans if span.name == name]
+
+    def get_root_spans(self, spans: List[Span]) -> List[Span]:
+        """Get all root spans (spans without parents)."""
+        return [span for span in spans if span.parent is None]
+
+    def get_child_spans(
+        self, spans: List[Span], parent_span: Span
+    ) -> List[Span]:
+        """Get all child spans of the given parent span."""
+        return [
+            span
+            for span in spans
+            if span.parent
+            and span.parent.span_id == parent_span.context.span_id
+        ]
