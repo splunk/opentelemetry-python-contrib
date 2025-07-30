@@ -73,7 +73,7 @@ from .utils import (
 WEAVIATE_V3 = 3
 WEAVIATE_V4 = 4
 
-WEAVIATE_VERSION = None
+weaviate_version = None
 _instruments = ("weaviate-client >= 3.0.0, < 5",)
 
 
@@ -97,7 +97,7 @@ class WeaviateInstrumentor(BaseInstrumentor):
         return _instruments
 
     def _instrument(self, **kwargs: Any) -> None:
-        global WEAVIATE_VERSION
+        global weaviate_version
         tracer_provider = kwargs.get("tracer_provider")
         tracer = get_tracer(
             __name__,
@@ -109,37 +109,39 @@ class WeaviateInstrumentor(BaseInstrumentor):
         try:
             major_version = int(weaviate.__version__.split(".")[0])
             if major_version >= 4:
-                WEAVIATE_VERSION = WEAVIATE_V4
+                weaviate_version = WEAVIATE_V4
             else:
-                WEAVIATE_VERSION = WEAVIATE_V3
+                weaviate_version = WEAVIATE_V3
         except (ValueError, IndexError):
             # Default to V3 if version parsing fails
-            WEAVIATE_VERSION = WEAVIATE_V3
+            weaviate_version = WEAVIATE_V3
 
-        self._get_server_details(WEAVIATE_VERSION, tracer)
+        self._get_server_details(weaviate_version, tracer)
 
         wrappings = (
-            MAPPING_V3 if WEAVIATE_VERSION == WEAVIATE_V3 else MAPPING_V4
+            MAPPING_V3 if weaviate_version == WEAVIATE_V3 else MAPPING_V4
         )
         for to_wrap in wrappings:
+            name = ".".join([to_wrap["name"], to_wrap["function"]])
             wrap_function_wrapper(
                 module=to_wrap["module"],
-                name=to_wrap["name"],
+                name=name,
                 wrapper=_WeaviateTraceInjectionWrapper(
                     tracer, wrap_properties=to_wrap
                 ),
             )
 
     def _uninstrument(self, **kwargs: Any) -> None:
-        global WEAVIATE_VERSION
+        global weaviate_version
         wrappings = (
-            MAPPING_V3 if WEAVIATE_VERSION == WEAVIATE_V3 else MAPPING_V4
+            MAPPING_V3 if weaviate_version == WEAVIATE_V3 else MAPPING_V4
         )
         for to_unwrap in wrappings:
             try:
+                module = ".".join([to_unwrap["module"], to_unwrap["name"]])
                 unwrap(
-                    to_unwrap["module"],
-                    to_unwrap["name"],
+                    module,
+                    to_unwrap["function"],
                 )
             except (ImportError, AttributeError, ValueError):
                 # Ignore errors when unwrapping - module might not be loaded
@@ -148,10 +150,10 @@ class WeaviateInstrumentor(BaseInstrumentor):
 
         # unwrap the connection initialization to remove the context variable injection
         try:
-            if WEAVIATE_VERSION == WEAVIATE_V3:
-                unwrap(weaviate, "Client.__init__")
-            elif WEAVIATE_VERSION == WEAVIATE_V4:
-                unwrap(weaviate, "WeaviateClient.__init__")
+            if weaviate_version == WEAVIATE_V3:
+                unwrap("weaviate.Client", "__init__")
+            elif weaviate_version == WEAVIATE_V4:
+                unwrap("weaviate.WeaviateClient", "__init__")
         except (ImportError, AttributeError, ValueError):
             # Ignore errors when unwrapping connection methods
             pass
