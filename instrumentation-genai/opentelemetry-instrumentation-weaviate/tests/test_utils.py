@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 from typing import List
+
+import weaviate
 
 from opentelemetry.instrumentation.weaviate import WeaviateInstrumentor
 from opentelemetry.semconv._incubating.attributes import (
@@ -30,11 +33,38 @@ class WeaviateSpanTestBase(TestBase):
 
     def setUp(self):
         super().setUp()
+        self.cassette_path = os.path.join(
+            os.path.dirname(__file__), "cassettes/"
+        )
+        self.version = self.get_weaviate_version()
         WeaviateInstrumentor().instrument(tracer_provider=self.tracer_provider)
 
     def tearDown(self):
         super().tearDown()
         WeaviateInstrumentor().uninstrument()
+
+    def get_weaviate_version(self):
+        # Try to get the version from the weaviate module or client
+        try:
+            return int(weaviate.__version__.split(".")[0])
+        except AttributeError:
+            # Fallback: try to get from client instance if available
+            client = weaviate.Client("http://localhost:8080")
+            return int(client.get_version().split(".")[0])
+
+    def get_weaviate_client(self):
+        """Get a Weaviate client instance."""
+        if self.get_weaviate_version() >= 4:
+            return weaviate.connect_to_local(skip_init_checks=True)
+        return weaviate.Client("http://localhost:8080")
+
+    def get_basic_call(self, client):
+        """Perform a basic operation to generate spans."""
+        # This can be any operation that generates a span, e.g., getting schema
+        if self.get_weaviate_version() >= 4:
+            return client.collections.get("TestCollection")
+        else:
+            return client.schema.get()
 
     def assert_span_count(self, count: int) -> List[Span]:
         """Assert that the memory exporter has the expected number of spans."""

@@ -188,54 +188,42 @@ class _WeaviateConnectionInjectionWrapper:
         if not is_instrumentation_enabled():
             return wrapped(*args, **kwargs)
 
-        name = f"{SPAN_NAME_PREFIX}.{getattr(wrapped, '__name__', 'unknown')}"
-        with self.tracer.start_as_current_span(
-            name, kind=SpanKind.CLIENT
-        ) as span:
-            # Extract connection details from args/kwargs before calling wrapped function
-            connection_host = None
-            connection_port = None
-            connection_url = None
+        # Extract connection details from args/kwargs before calling wrapped function
+        connection_host = None
+        connection_port = None
+        connection_url = None
 
-            # For v3, extract URL from constructor arguments
-            # weaviate.Client(url="http://localhost:8080", ...)
-            if args and len(args) > 0:
-                # First positional argument is typically the URL
-                connection_url = args[0]
-            elif "url" in kwargs:
-                # URL passed as keyword argument
-                connection_url = kwargs["url"]
+        # For v3, extract URL from constructor arguments
+        # weaviate.Client(url="http://localhost:8080", ...)
+        if args and len(args) > 0:
+            # First positional argument is typically the URL
+            connection_url = args[0]
+        elif "url" in kwargs:
+            # URL passed as keyword argument
+            connection_url = kwargs["url"]
 
+        if connection_url:
+            connection_host, connection_port = parse_url_to_host_port(
+                connection_url
+            )
+
+        return_value = wrapped(*args, **kwargs)
+
+        # For v4, try to extract from instance after creation (fallback)
+        if (
+            not connection_url
+            and hasattr(instance, "_connection")
+            and instance._connection is not None
+        ):
+            connection_url = instance._connection.url
             if connection_url:
                 connection_host, connection_port = parse_url_to_host_port(
                     connection_url
                 )
 
-            return_value = wrapped(*args, **kwargs)
-
-            # For v4, try to extract from instance after creation (fallback)
-            if (
-                not connection_url
-                and hasattr(instance, "_connection")
-                and instance._connection is not None
-            ):
-                connection_url = instance._connection.url
-                if connection_url:
-                    connection_host, connection_port = parse_url_to_host_port(
-                        connection_url
-                    )
-
-            _connection_host_context.set(connection_host)
-            _connection_port_context.set(connection_port)
-            if connection_host is not None:
-                span.set_attribute(
-                    ServerAttributes.SERVER_ADDRESS, connection_host
-                )
-            if connection_port is not None:
-                span.set_attribute(
-                    ServerAttributes.SERVER_PORT, connection_port
-                )
-            return return_value
+        _connection_host_context.set(connection_host)
+        _connection_port_context.set(connection_port)
+        return return_value
 
 
 class _WeaviateTraceInjectionWrapper:
