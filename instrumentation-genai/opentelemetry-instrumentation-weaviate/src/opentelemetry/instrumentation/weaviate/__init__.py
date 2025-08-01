@@ -247,7 +247,10 @@ class _WeaviateTraceInjectionWrapper:
         if not is_instrumentation_enabled():
             return wrapped(*args, **kwargs)
 
-        name = f"{SPAN_NAME_PREFIX}.{getattr(wrapped, '__name__', 'unknown')}"
+        name = self.wrap_properties.get(
+            "span_name",
+            f"{SPAN_NAME_PREFIX}.{getattr(wrapped, '__name__', 'unknown')}",
+        )
         with self.tracer.start_as_current_span(
             name, kind=SpanKind.CLIENT
         ) as span:
@@ -255,11 +258,10 @@ class _WeaviateTraceInjectionWrapper:
 
             # Extract operation name dynamically from the function call
             module_name = self.wrap_properties.get("module", "")
-            function_name = self.wrap_properties.get("name", "")
+            function_name = self.wrap_properties.get("function", "")
             operation_name = extract_db_operation_name(
                 wrapped, module_name, function_name
             )
-
             span.set_attribute(DbAttributes.DB_OPERATION_NAME, operation_name)
 
             # Weaviate does not have a specific database name, so we use collection and tenant if available

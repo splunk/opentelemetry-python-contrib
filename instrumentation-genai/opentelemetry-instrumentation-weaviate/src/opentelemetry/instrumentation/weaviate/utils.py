@@ -64,6 +64,9 @@ def extract_db_operation_name(
     # Get the actual function name
     actual_function_name = getattr(wrapped, "__name__", function_name)
 
+    # TODO: Clean this up, do I just use the function name directly?
+    # If the function name is not available, use the module name
+
     # Extract operation from module and function names
     if "collections" in module_name:
         if any(
@@ -100,7 +103,7 @@ def extract_db_operation_name(
         "query" in module_name.lower()
         or "query" in actual_function_name.lower()
     ):
-        return "select"
+        return "query"
 
     # Batch operations are typically inserts
     if "batch" in module_name.lower():

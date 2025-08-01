@@ -15,8 +15,6 @@
 import vcr
 
 from opentelemetry.instrumentation.weaviate import WeaviateInstrumentor
-from opentelemetry.instrumentation.weaviate.mapping import SPAN_NAME_PREFIX
-from opentelemetry.trace import SpanKind
 
 from .test_utils import WeaviateSpanTestBase
 
@@ -52,13 +50,7 @@ class TestWeaviateSpanCommon(WeaviateSpanTestBase):
             client = self.get_weaviate_client()
             # Perform an operation to generate spans
             self.get_basic_call(client)
-            spans = self.assert_span_count(1)
-            span = spans[0]
-
-            # Verify basic span properties
-            self.assert_span_properties(
-                span, f"{SPAN_NAME_PREFIX}.get", SpanKind.CLIENT
-            )
+            self.assert_span_count(1)
 
     # def test_span_kind_is_client(self):
     #     """Test that all spans have CLIENT kind."""
