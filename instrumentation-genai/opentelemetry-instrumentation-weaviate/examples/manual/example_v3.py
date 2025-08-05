@@ -64,6 +64,13 @@ def create_schema(client):
         {
             "class": CLASS_NAME,
             "description": "An Article class to store a text",
+            "vectorizer": "text2vec-ollama",
+            "moduleConfig": {
+                "text2vec-ollama": {
+                    "apiEndpoint": "http://ollama:11434",
+                    "model": "nomic-embed-text:latest",
+                }
+            },
             "properties": [
                 {
                     "name": "author",
@@ -139,6 +146,22 @@ def query_raw(client):
     return client.query.raw(RAW_QUERY)
 
 
+def query_near_text(client, text):
+    """Query using nearText to find similar articles."""
+    near_text_filter = {
+        "concepts": ["lost while writing"],
+    }
+
+    query_result = (
+        client.query.get(CLASS_NAME, ["text", "author"])
+        .with_additional(["id", "distance"])
+        .with_near_text(near_text_filter)
+        .do()
+    )
+
+    return query_result
+
+
 def validate(client, uuid=None):
     return client.data_object.validate(
         data_object={
@@ -157,6 +180,13 @@ def create_schemas(client):
                 {
                     "class": CLASS_NAME,
                     "description": "An Article class to store a text",
+                    "vectorizer": "text2vec-ollama",
+                    "moduleConfig": {
+                        "text2vec-ollama": {
+                            "apiEndpoint": "http://ollama:11434",
+                            "model": "nomic-embed-text:latest",
+                        }
+                    },
                     "properties": [
                         {
                             "name": "author",
@@ -215,6 +245,8 @@ def example_schema_workflow(client):
     print("Aggregate result:", json.dumps(aggregate_result, indent=2))
     raw_result = query_raw(client)
     print("Raw result: ", json.dumps(raw_result, indent=2))
+    near_text_result = query_near_text(client, "book")
+    print("Near text result: ", json.dumps(near_text_result, indent=2))
 
     delete_schema(client)
     print("Deleted schema")

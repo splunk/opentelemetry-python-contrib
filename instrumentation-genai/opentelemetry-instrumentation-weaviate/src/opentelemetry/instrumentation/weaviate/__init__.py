@@ -332,9 +332,10 @@ class _WeaviateTraceInjectionWrapper:
         Check if this is a similarity search operation.
         """
         module_name = self.wrap_properties.get("module", "")
-        function_name = self.wrap_properties.get("name", "")
+        function_name = self.wrap_properties.get("function", "")
         return (
             "query" in module_name.lower()
+            or "do" in function_name.lower()
             or "near_text" in function_name.lower()
             or "fetch_objects" in function_name.lower()
         )
@@ -374,9 +375,32 @@ class _WeaviateTraceInjectionWrapper:
                             doc["score"] = metadata.score
 
                     documents.append(doc)
-            elif hasattr(response, "data"):
+            elif "data" in response:
                 # Handle GraphQL responses
-                pass
+                for response_key in response["data"].keys():
+                    for collection in response["data"][response_key]:
+                        for obj in response["data"][response_key][collection]:
+                            doc: dict[str, Any] = {}
+                            doc["content"] = dict(obj)
+                            del doc["content"]["_additional"]
+                            if "_additional" in obj:
+                                metadata = obj["_additional"]
+                                if (
+                                    "distance" in metadata
+                                    and metadata["distance"] is not None
+                                ):
+                                    doc["distance"] = metadata["distance"]
+                                if (
+                                    "certainty" in metadata
+                                    and metadata["certainty"] is not None
+                                ):
+                                    doc["certainty"] = metadata["certainty"]
+                                if (
+                                    "score" in metadata
+                                    and metadata["score"] is not None
+                                ):
+                                    doc["score"] = metadata["score"]
+                            documents.append(doc)
         except Exception:
             # silently handle extraction errors
             pass
