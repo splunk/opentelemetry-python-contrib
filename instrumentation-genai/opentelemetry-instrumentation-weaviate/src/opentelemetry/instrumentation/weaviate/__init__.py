@@ -302,23 +302,28 @@ class _WeaviateTraceInjectionWrapper:
                     # emit the documents as events
                     for doc in documents:
                         # emit the document content as an event
-                        query = {}
+                        query = ""
                         if "query" in kwargs:
                             query = json.dumps(kwargs["query"])
                         attributes = {
                             "db.weaviate.document.content": json.dumps(
                                 doc["content"]
                             ),
-                            "db.weaviate.document.distance": doc.get(
-                                "distance", None
-                            ),
-                            "db.weaviate.document.certainty": doc.get(
-                                "certainty", None
-                            ),
-                            "db.weaviate.document.score": doc.get(
-                                "score", None
-                            ),
                         }
+
+                        # Only add non-None values to attributes
+                        if doc.get("distance") is not None:
+                            attributes["db.weaviate.document.distance"] = doc[
+                                "distance"
+                            ]
+                        if doc.get("certainty") is not None:
+                            attributes["db.weaviate.document.certainty"] = doc[
+                                "certainty"
+                            ]
+                        if doc.get("score") is not None:
+                            attributes["db.weaviate.document.score"] = doc[
+                                "score"
+                            ]
                         if query:
                             attributes["db.weaviate.document.query"] = query
                         span.add_event(
