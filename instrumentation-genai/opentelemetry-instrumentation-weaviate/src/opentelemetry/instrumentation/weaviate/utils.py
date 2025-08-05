@@ -13,38 +13,13 @@
 # limitations under the License.
 
 import logging
-import traceback
-from typing import Any, Callable, Optional, Tuple
+from typing import Any, Optional, Tuple
 from urllib.parse import urlparse
 
 # TODO: get semconv for vector databases
 # from opentelemetry.semconv._incubating.attributes import gen_ai_attributes as GenAI
 
 logger = logging.getLogger(__name__)
-
-
-def dont_throw(func: Callable[..., Any]) -> Callable[..., Any]:
-    """
-    Decorator that catches and logs exceptions, rather than re-raising them,
-    to avoid interfering with user code if instrumentation fails.
-    """
-
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            logger.debug(
-                "OpenTelemetry instrumentation for Weaviate encountered an error in %s: %s",
-                func.__name__,
-                traceback.format_exc(),
-            )
-            from opentelemetry.instrumentation.weaviate.config import Config
-
-            if Config.exception_logger:
-                Config.exception_logger(e)
-            return None
-
-    return wrapper
 
 
 def parse_url_to_host_port(url: str) -> Tuple[Optional[str], Optional[int]]:
@@ -65,10 +40,10 @@ def extract_db_operation_name(
     actual_function_name = getattr(wrapped, "__name__", function_name)
 
     # TODO: Clean this up, do I just use the function name directly?
-    # If the function name is not available, use the module name
+    # this was an attempt to map Weaviate operations to standard DB operations
 
     # Extract operation from module and function names
-    if "collections" in module_name:
+    if "collections" in module_name:  # V4 methods
         if any(
             op in actual_function_name.lower()
             for op in ["create", "create_from_dict"]
