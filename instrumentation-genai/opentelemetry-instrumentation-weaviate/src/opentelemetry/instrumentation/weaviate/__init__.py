@@ -66,7 +66,6 @@ from opentelemetry.trace import SpanKind, Tracer, get_tracer
 from .mapping import MAPPING_V3, MAPPING_V4, SPAN_NAME_PREFIX
 from .utils import (
     extract_collection_name,
-    extract_db_operation_name,
     parse_url_to_host_port,
 )
 
@@ -259,10 +258,7 @@ class _WeaviateTraceInjectionWrapper:
             # Extract operation name dynamically from the function call
             module_name = self.wrap_properties.get("module", "")
             function_name = self.wrap_properties.get("function", "")
-            operation_name = extract_db_operation_name(
-                wrapped, module_name, function_name
-            )
-            span.set_attribute(DbAttributes.DB_OPERATION_NAME, operation_name)
+            span.set_attribute(DbAttributes.DB_OPERATION_NAME, function_name)
 
             # Weaviate does not have a specific database name, so we use collection and tenant if available
             tenant = self._extract_tenant(args, kwargs)
