@@ -260,11 +260,6 @@ class _WeaviateTraceInjectionWrapper:
             function_name = self.wrap_properties.get("function", "")
             span.set_attribute(DbAttributes.DB_OPERATION_NAME, function_name)
 
-            # Weaviate does not have a specific database name, so we use collection and tenant if available
-            tenant = self._extract_tenant(args, kwargs)
-            if tenant:
-                span.set_attribute("db.weaviate.tenant", tenant)
-
             # Extract collection name from the operation
             collection_name = extract_collection_name(
                 wrapped, instance, args, kwargs, module_name, function_name
@@ -406,9 +401,3 @@ class _WeaviateTraceInjectionWrapper:
             # silently handle extraction errors
             pass
         return documents
-
-    def _extract_tenant(self, args: Any, kwargs: Any) -> Optional[str]:
-        """Extract tenant from operation arguments."""
-        if "tenant" in kwargs:
-            return kwargs["tenant"]
-        return None
