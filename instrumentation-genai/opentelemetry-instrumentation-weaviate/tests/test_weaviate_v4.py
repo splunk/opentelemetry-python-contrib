@@ -61,19 +61,19 @@ class TestWeaviateV4SpanGeneration(WeaviateSpanTestBase):
         )
         with vcr.use_cassette(cassette_path):
             client = self.get_weaviate_client()
-            near_text_filter = {
-                "concepts": ["lost while writing"],
-            }
-
-            (
-                client.query.get("Article", ["text", "author"])
-                .with_additional(["id", "distance"])
-                .with_near_text(near_text_filter)
-                .do()
+            collection = client.collections.get("Article")
+            collection.query.near_text(
+                query="lost while writing",
+                limit=2,
+                return_metadata=weaviate.classes.query.MetadataQuery(
+                    distance=True
+                ),
             )
 
-            spans = self.assert_span_count(
-                2
-            )  # Weaviate V3 does a "get" against the schema, then a "do" against the data
+            spans = self.assert_span_count(2)
             span = spans[1]
-            self.assertIn("db.weaviate.distance", span.attributes)
+            self.assertGreater(len(span.events), 1)
+            event = span.events[0]
+            self.assertIn(
+                "db.weaviate.document.distance", dict(event.attributes)
+            )

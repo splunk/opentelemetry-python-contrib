@@ -87,4 +87,8 @@ class TestWeaviateV3SpanGeneration(WeaviateSpanTestBase):
                 2
             )  # Weaviate V3 does a "get" against the schema, then a "do" against the data
             span = spans[1]
-            self.assertIn("db.weaviate.distance", span.attributes)
+            self.assertGreater(len(span.events), 1)
+            event = span.events[0]
+            self.assertIn(
+                "db.weaviate.document.distance", dict(event.attributes)
+            )
