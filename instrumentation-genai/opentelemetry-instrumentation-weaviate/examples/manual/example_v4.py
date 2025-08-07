@@ -3,10 +3,10 @@
 # V3 documentation: https://weaviate.io/developers/weaviate/client-libraries/python/python_v3
 # Some parts were also adapted from:
 # https://towardsdatascience.com/getting-started-with-weaviate-python-client-e85d14f19e4f
-import json
 import os
 
 import weaviate
+import weaviate.classes as wvc
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -58,53 +58,49 @@ WeaviateInstrumentor().instrument()
 
 
 def create_schema(client):
-    client.schema.create_class(
+    client.collections.create(
+        name=CLASS_NAME,
+        description="An Article class to store a text",
+        vectorizer_config=wvc.config.Configure.Vectorizer.text2vec_ollama(
+            api_endpoint="http://ollama:11434"
+        ),
+        generative_config=wvc.config.Configure.Generative.ollama(
+            api_endpoint="http://ollama:11434"
+        ),
+        properties=[
+            wvc.config.Property(
+                name="author",
+                data_type=wvc.config.DataType.TEXT,
+                description="The name of the author",
+            ),
+            wvc.config.Property(
+                name="text",
+                data_type=wvc.config.DataType.TEXT,
+                description="The text content",
+            ),
+        ],
+    )
+
+
+def get_collection(client):
+    """Get the collection to test connection"""
+    return client.collections.get(CLASS_NAME)
+
+
+def delete_collection(client):
+    client.collections.delete(CLASS_NAME)
+
+
+def create_object(collection):
+    return collection.data.insert(
         {
-            "class": CLASS_NAME,
-            "description": "An Article class to store a text",
-            "vectorizer": "text2vec-ollama",
-            "moduleConfig": {
-                "text2vec-ollama": {
-                    "apiEndpoint": "http://ollama:11434",
-                    "model": "nomic-embed-text:latest",
-                }
-            },
-            "properties": [
-                {
-                    "name": "author",
-                    "dataType": ["string"],
-                    "description": "The name of the author",
-                },
-                {
-                    "name": "text",
-                    "dataType": ["text"],
-                    "description": "The text content",
-                },
-            ],
+            "author": "Robert",
+            "text": "Once upon a time, someone wrote a book...",
         }
     )
 
 
-def get_schema(client):
-    """Get the schema to test connection"""
-    return client.schema.get(CLASS_NAME)
-
-
-def delete_schema(client):
-    client.schema.delete_class(CLASS_NAME)
-
-
-def create_object(client):
-    return client.data_object.create(
-        data_object={
-            "author": "Robert",
-            "text": "Once upon a time, someone wrote a book...",
-        },
-        class_name=CLASS_NAME,
-    )
-
-
-def create_batch(client):
+def create_batch(collection):
     objs = [
         {
             "author": "Robert",
@@ -127,34 +123,33 @@ def create_batch(client):
             "text": "As king, he ruled...",
         },
     ]
-    with client.batch as batch:
+    with collection.batch.dynamic() as batch:
         for obj in objs:
-            batch.add_data_object(obj, class_name=CLASS_NAME)
+            batch.add_object(properties=obj)
 
 
-def query_get(client):
-    return client.query.get(class_name=CLASS_NAME, properties=["author"]).do()
+def query_get(collection):
+    return collection.query.fetch_objects(
+        return_properties=[
+            "author",
+        ]
+    )
 
 
-def query_aggregate(client):
-    return client.query.aggregate(class_name=CLASS_NAME).with_meta_count().do()
+def query_aggregate(collection):
+    return collection.aggregate.over_all(total_count=True)
 
 
 def query_raw(client):
-    return client.query.raw(RAW_QUERY)
+    return client.graphql_raw_query(RAW_QUERY)
 
 
-def query_near_text(client, text):
+def query_near_text(collection, text):
     """Query using nearText to find similar articles."""
-    near_text_filter = {
-        "concepts": ["lost while writing"],
-    }
-
-    query_result = (
-        client.query.get(CLASS_NAME, ["text", "author"])
-        .with_additional(["id", "distance"])
-        .with_near_text(near_text_filter)
-        .do()
+    query_result = collection.query.near_text(
+        query=text,
+        limit=2,
+        return_metadata=weaviate.classes.query.MetadataQuery(distance=True),
     )
 
     return query_result
@@ -172,50 +167,41 @@ def validate(client, uuid=None):
 
 
 def create_schemas(client):
-    client.schema.create(
+    client.collections.create_from_dict(
         {
-            "classes": [
+            "class": "Author",
+            "description": "An author that writes an article",
+            "properties": [
                 {
-                    "class": CLASS_NAME,
-                    "description": "An Article class to store a text",
-                    "vectorizer": "text2vec-ollama",
-                    "moduleConfig": {
-                        "text2vec-ollama": {
-                            "apiEndpoint": "http://ollama:11434",
-                            "model": "nomic-embed-text:latest",
-                        }
-                    },
-                    "properties": [
-                        {
-                            "name": "author",
-                            "dataType": ["Author"],
-                            "description": "The author",
-                        },
-                        {
-                            "name": "text",
-                            "dataType": ["text"],
-                            "description": "The text content",
-                        },
-                    ],
+                    "name": "name",
+                    "dataType": ["string"],
+                    "description": "The name of the author",
+                },
+            ],
+        },
+    )
+    client.collections.create_from_dict(
+        {
+            "class": CLASS_NAME,
+            "description": "An Article class to store a text",
+            "properties": [
+                {
+                    "name": "author",
+                    "dataType": ["Author"],
+                    "description": "The author",
                 },
                 {
-                    "class": "Author",
-                    "description": "An author that writes an article",
-                    "properties": [
-                        {
-                            "name": "name",
-                            "dataType": ["string"],
-                            "description": "The name of the author",
-                        },
-                    ],
+                    "name": "text",
+                    "dataType": ["text"],
+                    "description": "The text content",
                 },
-            ]
-        }
+            ],
+        },
     )
 
 
 def delete_all(client):
-    client.schema.delete_all()
+    client.collections.delete_all()
 
 
 def example_schema_workflow(client):
@@ -223,30 +209,25 @@ def example_schema_workflow(client):
 
     create_schema(client)
     print("Created schema")
-    schema = get_schema(client)
-    print("Retrieved schema: ", json.dumps(schema, indent=2))
-    result = validate(client)
-    print(f"Object found: {result.get('valid')}")
+    collection = get_collection(client)
+    print("Retrieved collection: ", collection.name)
 
-    uuid = create_object(client)
+    uuid = create_object(collection)
     print("Created object of UUID: ", uuid)
-    client.data_object.exists(uuid, class_name=CLASS_NAME)
-    obj = client.data_object.get(uuid, class_name=CLASS_NAME)
-    print("Retrieved obj: ", json.dumps(obj, indent=2))
-    result = validate(client, uuid=uuid)
-    print(f"Object found: {result.get('valid')}")
+    obj = collection.query.fetch_object_by_id(uuid)
+    print("Retrieved obj: ", obj)
 
-    create_batch(client)
-    result = query_get(client)
-    print("Query result:", json.dumps(result, indent=2))
-    aggregate_result = query_aggregate(client)
-    print("Aggregate result:", json.dumps(aggregate_result, indent=2))
+    create_batch(collection)
+    result = query_get(collection)
+    print("Query result:", result)
+    aggregate_result = query_aggregate(collection)
+    print("Aggregate result:", aggregate_result)
     raw_result = query_raw(client)
-    print("Raw result: ", json.dumps(raw_result, indent=2))
-    near_text_result = query_near_text(client, "book")
-    print("Near text result: ", json.dumps(near_text_result, indent=2))
+    print("Raw result: ", raw_result)
+    near_text_result = query_near_text(collection, "book")
+    print("Near text result: ", near_text_result)
 
-    delete_schema(client)
+    delete_collection(client)
     print("Deleted schema")
 
 
@@ -277,10 +258,7 @@ if __name__ == "__main__":
             additional_headers=additional_headers,
         )
     else:
-        client = weaviate.Client(
-            url="http://localhost:8080",
-            additional_headers=additional_headers,
-        )
+        client = weaviate.connect_to_local(headers=additional_headers)
     print("Client connected")
 
     try:
