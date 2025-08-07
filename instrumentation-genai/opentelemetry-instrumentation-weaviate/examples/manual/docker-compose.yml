@@ -1,0 +1,48 @@
+---
+services:
+  weaviate:
+    command:
+    - --host
+    - 0.0.0.0
+    - --port
+    - '8080'
+    - --scheme
+    - http
+    image: cr.weaviate.io/semitechnologies/weaviate:1.31.2
+    ports:
+    - 8080:8080
+    - 50051:50051
+    - 2112:2112
+    volumes:
+    - weaviate_data:/var/lib/weaviate
+    restart: on-failure:0
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      ENABLE_API_BASED_MODULES: 'true'
+      ENABLE_MODULES: 'text2vec-ollama,generative-ollama'
+
+      DEFAULT_VECTORIZER_MODULE: 'text2vec-ollama'
+      TEXT2VEC_OLLAMA_API_ENDPOINT: 'http://ollama:11434'
+      TEXT2VEC_OLLAMA_MODEL: 'nomic-embed-text:latest'
+      GENERATIVE_OLLAMA_API_ENDPOINT: 'http://ollama:11434'
+      GENERATIVE_OLLAMA_MODEL: 'llama3.2:latest'
+
+      CLUSTER_HOSTNAME: 'node1'
+      PROMETHEUS_MONITORING_ENABLED: 'true'
+    depends_on: 
+      - ollama
+
+  ollama:
+    build:
+      context: . 
+      dockerfile: Dockerfile 
+    image: my-ollama-with-models:latest 
+    ports:
+      - "11434:11434"
+    restart: on-failure
+
+volumes:
+  weaviate_data:
+  ollama_models: 
