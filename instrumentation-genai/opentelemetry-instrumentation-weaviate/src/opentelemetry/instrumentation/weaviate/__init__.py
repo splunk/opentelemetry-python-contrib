@@ -248,8 +248,9 @@ class _WeaviateTraceInjectionWrapper:
 
         name = self.wrap_properties.get(
             "span_name",
-            f"{SPAN_NAME_PREFIX}.{getattr(wrapped, '__name__', 'unknown')}",
+            getattr(wrapped, "__name__", "unknown"),
         )
+        name = f"{SPAN_NAME_PREFIX}.{name}"
         with self.tracer.start_as_current_span(
             name, kind=SpanKind.CLIENT
         ) as span:

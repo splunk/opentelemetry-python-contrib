@@ -18,8 +18,11 @@ from typing import List
 import weaviate
 
 from opentelemetry.instrumentation.weaviate import WeaviateInstrumentor
+from opentelemetry.semconv._incubating.attributes import (
+    server_attributes as ServerAttributes,
+)
 from opentelemetry.test.test_base import TestBase
-from opentelemetry.trace import Span
+from opentelemetry.trace import Span, SpanKind
 
 
 class WeaviateSpanTestBase(TestBase):
@@ -77,3 +80,23 @@ class WeaviateSpanTestBase(TestBase):
         self.assertEqual(
             child_span.parent.trace_id, parent_span.context.trace_id
         )
+
+    def assert_span_properties(
+        self,
+        span: Span,
+        expected_name: str,
+        expected_kind: SpanKind = SpanKind.CLIENT,
+    ):
+        """Assert basic span properties."""
+        self.assertEqual(span.name, expected_name)
+        self.assertEqual(span.kind, expected_kind)
+
+    def assert_server_attributes(
+        self, span: Span, host: str = None, port: int = None
+    ):
+        """Assert server-related span attributes."""
+        attributes = span.attributes
+        if host:
+            self.assertEqual(attributes[ServerAttributes.SERVER_ADDRESS], host)
+        if port:
+            self.assertEqual(attributes[ServerAttributes.SERVER_PORT], port)
