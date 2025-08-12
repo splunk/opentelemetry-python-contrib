@@ -35,6 +35,9 @@ instruments = [
   "weaviate-client >= 3.0",
 ]
 
+[project.entry-points.opentelemetry_instrumentor]
+weaviate-client = "opentelemetry.instrumentation.weaviate:WeaviateInstrumentor"
+
 [project.urls]
 Homepage = "https://github.com/open-telemetry/opentelemetry-python-contrib/tree/main/instrumentation-genai/opentelemetry-instrumentation-weaviate"
 Repository = "https://github.com/open-telemetry/opentelemetry-python-contrib"

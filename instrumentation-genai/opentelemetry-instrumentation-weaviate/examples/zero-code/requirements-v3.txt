@@ -1,0 +1,7 @@
+weaviate-client>=3.0.0,<4.0.0
+opentelemetry-sdk~=1.36.0
+opentelemetry-exporter-otlp-proto-grpc~=1.36.0
+opentelemetry-distro~=0.57b0
+
+# Uncomment after weaviate instrumetation is released
+# opentelemetry-instrumentation-weaviate~=2.0b0.dev
