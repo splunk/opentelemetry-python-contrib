@@ -158,18 +158,15 @@ class WeaviateInstrumentor(BaseInstrumentor):
             pass
 
     def _get_server_details(self, version: int, tracer: Tracer) -> None:
-        if version == WEAVIATE_V3:
-            wrap_function_wrapper(
-                module="weaviate",
-                name="Client.__init__",
-                wrapper=_WeaviateConnectionInjectionWrapper(tracer),
-            )
-        elif version == WEAVIATE_V4:
-            wrap_function_wrapper(
-                module="weaviate",
-                name="WeaviateClient.__init__",
-                wrapper=_WeaviateConnectionInjectionWrapper(tracer),
-            )
+        name = "Client.__init__"
+        if version == WEAVIATE_V4:
+            name = "WeaviateClient.__init__"
+
+        wrap_function_wrapper(
+            module="weaviate",
+            name=name,
+            wrapper=_WeaviateConnectionInjectionWrapper(tracer),
+        )
 
 
 class _WeaviateConnectionInjectionWrapper:

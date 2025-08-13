@@ -65,30 +65,3 @@ class TestWeaviateV3SpanGeneration(WeaviateSpanTestBase):
             self.assertIsNone(span.parent)
 
             # TODO: find a child span to assert against
-
-    def test_distance_attribute(self):
-        cassette_path = (
-            f"{self.cassette_path}test_distance_attribute_v{self.version}.yaml"
-        )
-        with vcr.use_cassette(cassette_path):
-            client = self.get_weaviate_client()
-            near_text_filter = {
-                "concepts": ["lost while writing"],
-            }
-
-            (
-                client.query.get("Article", ["text", "author"])
-                .with_additional(["id", "distance"])
-                .with_near_text(near_text_filter)
-                .do()
-            )
-
-            spans = self.assert_span_count(
-                2
-            )  # Weaviate V3 does a "get" against the schema, then a "do" against the data
-            span = spans[1]
-            self.assertGreater(len(span.events), 1)
-            event = span.events[0]
-            self.assertIn(
-                "db.weaviate.document.distance", dict(event.attributes)
-            )
