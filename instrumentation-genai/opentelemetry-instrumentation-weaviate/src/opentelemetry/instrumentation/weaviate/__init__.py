@@ -52,10 +52,10 @@ from opentelemetry.instrumentation.weaviate.version import __version__
 
 # from opentelemetry.metrics import get_meter
 # from opentelemetry._events import get_event_logger
-from opentelemetry.semconv._incubating.attributes import (
+from opentelemetry.semconv.attributes import (
     db_attributes as DbAttributes,
 )
-from opentelemetry.semconv._incubating.attributes import (
+from opentelemetry.semconv.attributes import (
     server_attributes as ServerAttributes,
 )
 
@@ -251,7 +251,7 @@ class _WeaviateTraceInjectionWrapper:
         with self.tracer.start_as_current_span(
             name, kind=SpanKind.CLIENT
         ) as span:
-            span.set_attribute(DbAttributes.DB_SYSTEM, "weaviate")
+            span.set_attribute(DbAttributes.DB_SYSTEM_NAME, "weaviate")
 
             # Extract operation name dynamically from the function call
             module_name = self.wrap_properties.get("module", "")
